@@ -1,6 +1,7 @@
 import os
 import tempfile
 import json
+import re
 import requests
 import threading
 from flask import Flask, render_template, request, jsonify
@@ -17,6 +18,16 @@ CACHE_FILE = 'notes_cache.json'
 
 # Lock to ensure only one MP3 is processed at a time (reduces storage overhead)
 processing_lock = threading.Lock()
+
+def clean_latex_formatting(text):
+    """Removes LaTeX formatting like $\text{...}$ from the text."""
+    # Remove $\text{...}$ and replace with just the content inside
+    text = re.sub(r'\$\\text\{([^}]*)\}\$', r'\1', text)
+    # Also handle \\text{...} without dollar signs
+    text = re.sub(r'\\text\{([^}]*)\}', r'\1', text)
+    # Remove any remaining single $ signs (inline math)
+    text = re.sub(r'\$([^$]*)\$', r'\1', text)
+    return text
 
 def load_cache():
     if os.path.exists(CACHE_FILE):
@@ -70,7 +81,8 @@ def process_shiur():
     cache = load_cache()
     if page_url in cache:
         print(f"Returning cached notes for {page_url}")
-        return jsonify({'notes': cache[page_url], 'cached': True})
+        cleaned_notes = clean_latex_formatting(cache[page_url])
+        return jsonify({'notes': cleaned_notes, 'cached': True})
     
     # Acquire lock to ensure only one MP3 is processed at a time
     if not processing_lock.acquire(blocking=False):
@@ -105,16 +117,19 @@ def process_shiur():
             print("Generating notes...")
             model = genai.GenerativeModel("gemini-flash-latest")
             
-            prompt = "Take extensive and clear notes on this shiur. make sure to write hebrew terms in hebrew but the rest in english(do not translate or transliterate the hebrew terms)."
+            prompt = "Take extensive and clear notes on this shiur. Make sure to write hebrew terms in hebrew but the rest in english(do not translate or transliterate the hebrew terms)."
             
             result = model.generate_content([myfile, prompt])
             notes = result.text
             
+            # Clean LaTeX formatting
+            cleaned_notes = clean_latex_formatting(notes)
+            
             # Save to cache
-            cache[page_url] = notes
+            cache[page_url] = cleaned_notes
             save_cache(cache)
             
-            return jsonify({'notes': notes, 'cached': False})
+            return jsonify({'notes': cleaned_notes, 'cached': False})
             
         finally:
             # Cleanup temp file
