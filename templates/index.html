@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yutorah to Gemini Notes</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            /* Indigo 500 */
+            --primary-hover: #4f46e5;
+            /* Indigo 600 */
+            --bg-gradient-start: #f8fafc;
+            --bg-gradient-end: #e2e8f0;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --border-color: #e2e8f0;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: linear-gradient(135deg, var(--bg-gradient-start), var(--bg-gradient-end));
+            color: var(--text-main);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 900px;
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 24px;
+            box-shadow: var(--shadow-lg);
+            padding: 3rem;
+            transition: transform 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+            text-align: center;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(to right, #4f46e5, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.02em;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 3rem;
+            font-size: 1.1rem;
+        }
+
+        .input-group {
+            position: relative;
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: white;
+            padding: 0.5rem;
+            border-radius: 16px;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+
+        .input-group:focus-within {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+            border-color: var(--primary);
+        }
+
+        input[type="url"] {
+            flex: 1;
+            border: none;
+            padding: 1rem 1.5rem;
+            font-size: 1.1rem;
+            outline: none;
+            background: transparent;
+            font-family: inherit;
+            color: var(--text-main);
+            width: 100%;
+        }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            font-family: inherit;
+        }
+
+        button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3);
+        }
+
+        button:disabled {
+            background: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        #status {
+            text-align: center;
+            margin: 2rem 0;
+            min-height: 60px;
+        }
+
+        .loader {
+            width: 48px;
+            height: 48px;
+            border: 5px solid #e2e8f0;
+            border-bottom-color: var(--primary);
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+
+        @keyframes rotation {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .status-text {
+            margin-top: 1rem;
+            color: var(--text-muted);
+            font-weight: 500;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                opacity: 0.6;
+            }
+
+            50% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0.6;
+            }
+        }
+
+        #result {
+            background: white;
+            padding: 2.5rem;
+            border-radius: 16px;
+            border: 1px solid var(--border-color);
+            line-height: 1.8;
+            font-size: 1.05rem;
+            color: #334155;
+            animation: slideUp 0.5s ease-out;
+        }
+
+        #result h1,
+        #result h2,
+        #result h3 {
+            color: #1e293b;
+            margin-top: 2rem;
+        }
+
+        #result h1:first-child {
+            margin-top: 0;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Markdown Styles */
+        #result blockquote {
+            border-left: 4px solid var(--primary);
+            margin: 1.5rem 0;
+            padding-left: 1rem;
+            color: var(--text-muted);
+            font-style: italic;
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0 8px 8px 0;
+        }
+
+        #result code {
+            background: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Monaco', 'Consolas', monospace;
+            font-size: 0.9em;
+            color: #ef4444;
+        }
+
+        @media (max-width: 640px) {
+            .main-container {
+                padding: 1.5rem;
+            }
+
+            .input-group {
+                flex-direction: column;
+                padding: 1rem;
+                gap: 0.5rem;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="main-container">
+        <h1>Yutorah Notes</h1>
+        <p class="subtitle">Transform audio shiurim into comprehensive, clear notes with AI.</p>
+
+        <div class="input-group">
+            <input type="url" id="urlInput" placeholder="Paste Yutorah Shiur URL here..." required autocomplete="off">
+            <button id="generateBtn" onclick="generateNotes()">
+                <span>Generate Notes</span>
+            </button>
+        </div>
+
+        <div id="status" class="hidden">
+            <span class="loader"></span>
+            <p id="statusText" class="status-text">Processing your request...</p>
+        </div>
+
+        <div id="result" class="hidden"></div>
+    </div>
+
+    <script>
+        async function generateNotes() {
+            const urlInput = document.getElementById('urlInput');
+            const generateBtn = document.getElementById('generateBtn');
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('statusText');
+            const resultDiv = document.getElementById('result');
+
+            const url = urlInput.value.trim();
+            if (!url) {
+                // Shake animation for error
+                urlInput.parentElement.style.animation = 'shake 0.5s';
+                setTimeout(() => urlInput.parentElement.style.animation = '', 500);
+                return;
+            }
+
+            // Reset UI
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = 'Processing...';
+            statusDiv.classList.remove('hidden');
+            resultDiv.classList.add('hidden');
+            resultDiv.innerHTML = '';
+            statusText.textContent = "Finding audio and downloading... (This may take a minute)";
+
+            try {
+                const response = await fetch('/process', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ url: url }),
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    statusDiv.classList.add('hidden');
+                    resultDiv.classList.remove('hidden');
+                    // Render Markdown
+                    resultDiv.innerHTML = marked.parse(data.notes);
+                } else {
+                    throw new Error(data.error || 'An error occurred');
+                }
+            } catch (error) {
+                statusDiv.classList.remove('hidden');
+                document.querySelector('.loader').style.display = 'none';
+                statusText.textContent = `Error: ${error.message}`;
+                statusText.style.color = '#ef4444';
+                statusText.style.animation = 'none';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = 'Generate Notes';
+                if (statusText.textContent.includes('Error')) {
+                    // Keep error visible
+                } else {
+                    // Reset loader for next time if successful
+                    document.querySelector('.loader').style.display = 'inline-block';
+                }
+            }
+        }
+
+        // Add shake animation style dynamically
+        const style = document.createElement('style');
+        style.innerHTML = `
+            @keyframes shake {
+                0%, 100% { transform: translateX(0); }
+                25% { transform: translateX(-5px); }
+                75% { transform: translateX(5px); }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+</body>
+
+</html>
