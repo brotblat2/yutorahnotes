@@ -275,6 +275,26 @@
     </div>
 
     <script>
+        // Check for URL parameter on page load and auto-fill
+        window.addEventListener('DOMContentLoaded', function () {
+            const urlParams = new URLSearchParams(window.location.search);
+            const yutorahUrl = urlParams.get('url');
+
+            if (yutorahUrl) {
+                const urlInput = document.getElementById('urlInput');
+                if (urlInput) {
+                    urlInput.value = yutorahUrl;
+                    // Auto-submit after a short delay to ensure page is ready
+                    setTimeout(() => {
+                        const generateBtn = document.getElementById('generateBtn');
+                        if (generateBtn) {
+                            generateBtn.click();
+                        }
+                    }, 500);
+                }
+            }
+        });
+
         async function generateNotes() {
             const urlInput = document.getElementById('urlInput');
             const generateBtn = document.getElementById('generateBtn');
