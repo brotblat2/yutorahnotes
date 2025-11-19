@@ -2,6 +2,7 @@ import os
 import tempfile
 import json
 import requests
+import threading
 from flask import Flask, render_template, request, jsonify
 from bs4 import BeautifulSoup
 import google.generativeai as genai
@@ -13,6 +14,9 @@ GENAI_API_KEY = "AIzaSyCNmly7o_o-hg1mVJQOspcXt_gJVWXHNxQ"
 genai.configure(api_key=GENAI_API_KEY)
 
 CACHE_FILE = 'notes_cache.json'
+
+# Lock to ensure only one MP3 is processed at a time (reduces storage overhead)
+processing_lock = threading.Lock()
 
 def load_cache():
     if os.path.exists(CACHE_FILE):
@@ -68,6 +72,10 @@ def process_shiur():
         print(f"Returning cached notes for {page_url}")
         return jsonify({'notes': cache[page_url], 'cached': True})
     
+    # Acquire lock to ensure only one MP3 is processed at a time
+    if not processing_lock.acquire(blocking=False):
+        return jsonify({'error': 'Server is currently processing another request. Please try again in a moment.'}), 503
+    
     try:
         # 1. Get MP3 URL
         mp3_url = get_mp3_url(page_url)
@@ -76,13 +84,16 @@ def process_shiur():
             
         print(f"Found MP3 URL: {mp3_url}")
         
-        # 2. Download MP3 to temp file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_mp3:
+        # 2. Download MP3 to temp file in /tmp/ (Render-compatible)
+        temp_dir = '/tmp' if os.path.exists('/tmp') else None
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3', dir=temp_dir) as temp_mp3:
             print("Downloading MP3...")
             with requests.get(mp3_url, stream=True) as r:
                 r.raise_for_status()
-                for chunk in r.iter_content(chunk_size=8192):
-                    temp_mp3.write(chunk)
+                # Stream in larger chunks for better performance
+                for chunk in r.iter_content(chunk_size=1024*1024):  # 1MB chunks
+                    if chunk:  # filter out keep-alive new chunks
+                        temp_mp3.write(chunk)
             temp_mp3_path = temp_mp3.name
             
         try:
@@ -113,6 +124,9 @@ def process_shiur():
     except Exception as e:
         print(f"Error processing: {e}")
         return jsonify({'error': str(e)}), 500
+    finally:
+        # Always release the lock
+        processing_lock.release()
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)
