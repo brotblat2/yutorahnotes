@@ -65,24 +65,41 @@ def get_mp3_url(page_url):
         print(f"Error scraping URL: {e}")
         return None
 
+@app.errorhandler(404)
+def not_found(error):
+    return jsonify({'error': 'Not found'}), 404
+
+@app.errorhandler(500)
+def internal_error(error):
+    return jsonify({'error': 'Internal Server Error'}), 500
+
 @app.route('/')
 def index():
     return render_template('index.html')
 
 @app.route('/process', methods=['POST'])
 def process_shiur():
-    data = request.json
-    page_url = data.get('url')
+    try:
+        data = request.get_json(force=True, silent=True)
+        if not data:
+            return jsonify({'error': 'Invalid JSON data'}), 400
+        page_url = data.get('url')
+    except Exception:
+        return jsonify({'error': 'Invalid JSON data'}), 400
     
     if not page_url:
         return jsonify({'error': 'No URL provided'}), 400
     
     # Check cache
-    cache = load_cache()
-    if page_url in cache:
-        print(f"Returning cached notes for {page_url}")
-        cleaned_notes = clean_latex_formatting(cache[page_url])
-        return jsonify({'notes': cleaned_notes, 'cached': True})
+    try:
+        cache = load_cache()
+        if page_url in cache:
+            print(f"Returning cached notes for {page_url}")
+            cleaned_notes = clean_latex_formatting(cache[page_url])
+            return jsonify({'notes': cleaned_notes, 'cached': True})
+    except Exception as e:
+        print(f"Cache error: {e}")
+        # Continue processing if cache fails
     
     # Acquire lock to ensure only one MP3 is processed at a time
     if not processing_lock.acquire(blocking=False):
@@ -117,17 +134,26 @@ def process_shiur():
             print("Generating notes...")
             model = genai.GenerativeModel("gemini-flash-latest")
             
-            prompt = "Take extensive and clear notes on this shiur. Make sure to write hebrew terms in hebrew but the rest in english(do not translate or transliterate the hebrew terms)."
+            prompt = "Take extensive and clear notes on this shiur. Make sure to write hebrew terms in hebrew but the rest in english(do not translate or transliterate the hebrew terms). In the event that you can not acess the audio transcript, return an error message that you couldn't access it."
             
-            result = model.generate_content([myfile, prompt])
-            notes = result.text
+            try:
+                result = model.generate_content([myfile, prompt])
+                notes = result.text
+            except ValueError:
+                 # This usually happens if the model blocks the response or returns no text
+                return jsonify({'error': "Gemini could not generate notes for this audio (possibly due to safety filters or audio quality)."}), 422
+            except Exception as e:
+                return jsonify({'error': f"Gemini generation error: {str(e)}"}), 500
             
             # Clean LaTeX formatting
             cleaned_notes = clean_latex_formatting(notes)
             
             # Save to cache
-            cache[page_url] = cleaned_notes
-            save_cache(cache)
+            try:
+                cache[page_url] = cleaned_notes
+                save_cache(cache)
+            except Exception as e:
+                print(f"Error saving to cache: {e}")
             
             return jsonify({'notes': cleaned_notes, 'cached': False})
             
@@ -144,4 +170,5 @@ def process_shiur():
         processing_lock.release()
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    # Disable debug mode in production to prevent HTML error pages
+    app.run(debug=False, port=5000)
