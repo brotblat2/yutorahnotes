@@ -77,13 +77,19 @@ def get_mp3_url(page_url):
 
 def extract_lecture_id(url):
     """Extracts just the lecture ID from YUTorah URLs for caching.
-    Handles both URL patterns:
+    Handles multiple URL patterns:
     - https://www.yutorah.org/lectures/1154805/Title-Here -> "1154805"
+    - https://www.yutorah.org/lectures/lecture.cfm/1154805 -> "1154805"
     - https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here -> "1154805"
     Returns the ID as a string, or None if not found.
     """
     import re
-    # Extract just the lecture ID number from either URL pattern
+    # Extract just the lecture ID number from various URL patterns
+    # Pattern 1: /lectures/lecture.cfm/ID
+    match = re.search(r'/lectures/lecture\.cfm/(\d+)', url)
+    if match:
+        return match.group(1)
+    # Pattern 2: /lectures/ID or /sidebar/lecturedata/ID
     match = re.search(r'/(?:lectures|sidebar/lecturedata)/(\d+)', url)
     if match:
         return match.group(1)
