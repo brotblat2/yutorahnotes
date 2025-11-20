@@ -295,6 +295,72 @@
             }
         });
 
+        function extractErrorFromResponse(text, statusCode) {
+            // Try to extract error information from various response formats
+            
+            // 1. Check if it's HTML and look for common error patterns
+            if (text.trim().startsWith('<')) {
+                // Create a temporary DOM element to parse HTML
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                
+                // Look for common error message locations in HTML
+                const errorSelectors = [
+                    'title',
+                    'h1',
+                    '.error',
+                    '#error',
+                    '[class*="error"]',
+                    '[id*="error"]',
+                    'body > p',
+                    'body > div'
+                ];
+                
+                for (const selector of errorSelectors) {
+                    const element = doc.querySelector(selector);
+                    if (element && element.textContent.trim()) {
+                        const errorText = element.textContent.trim();
+                        // Filter out generic HTML boilerplate
+                        if (errorText.length > 10 && 
+                            !errorText.toLowerCase().includes('html') &&
+                            !errorText.toLowerCase().includes('doctype')) {
+                            return `${errorText} (HTTP ${statusCode})`;
+                        }
+                    }
+                }
+                
+                // Look for text content in body
+                const bodyText = doc.body ? doc.body.textContent.trim() : '';
+                if (bodyText && bodyText.length < 500) {
+                    // If body text is short, it might be an error message
+                    return `${bodyText.substring(0, 200)} (HTTP ${statusCode})`;
+                }
+            }
+            
+            // 2. Check if it looks like a plain text error message
+            const trimmedText = text.trim();
+            if (trimmedText.length > 0 && trimmedText.length < 500 && !trimmedText.startsWith('<!')) {
+                return `${trimmedText.substring(0, 200)} (HTTP ${statusCode})`;
+            }
+            
+            // 3. Check for JSON-like structure that might have error info
+            try {
+                const jsonData = JSON.parse(text);
+                if (jsonData.error) {
+                    return jsonData.error;
+                }
+                if (jsonData.message) {
+                    return jsonData.message;
+                }
+            } catch (e) {
+                // Not JSON, continue
+            }
+            
+            // 4. Fallback: return status code and truncated response
+            const preview = text.substring(0, 150).replace(/\s+/g, ' ');
+            return `Server returned non-JSON response (HTTP ${statusCode}): ${preview}${text.length > 150 ? '...' : ''}`;
+        }
+
         async function generateNotes() {
             const urlInput = document.getElementById('urlInput');
             const generateBtn = document.getElementById('generateBtn');
@@ -327,7 +393,25 @@
                     body: JSON.stringify({ url: url }),
                 });
 
-                const data = await response.json();
+                // Get response text first (can only read once)
+                const responseText = await response.text();
+                const contentType = response.headers.get('content-type');
+                let data;
+                
+                // Try to parse as JSON
+                if (contentType && contentType.includes('application/json')) {
+                    try {
+                        data = JSON.parse(responseText);
+                    } catch (parseError) {
+                        // JSON parsing failed - extract error from response
+                        const errorInfo = extractErrorFromResponse(responseText, response.status);
+                        throw new Error(errorInfo);
+                    }
+                } else {
+                    // Not JSON - extract useful information from HTML/text
+                    const errorInfo = extractErrorFromResponse(responseText, response.status);
+                    throw new Error(errorInfo);
+                }
 
                 if (response.ok) {
                     statusDiv.classList.add('hidden');
