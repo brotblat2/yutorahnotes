@@ -134,16 +134,31 @@ def process_shiur():
             print("Generating notes...")
             model = genai.GenerativeModel("gemini-flash-latest")
             
-            prompt = "Take extensive and clear notes on this shiur. Make sure to write hebrew terms in hebrew but the rest in english(do not translate or transliterate the hebrew terms). In the event that you can not acess the audio transcript, return an error message that you couldn't access it."
+            prompt = """Take extensive and clear notes on this shiur in markdown format. Follow these rules strictly:
+
+1. Write Hebrew terms in Hebrew script (do not translate or transliterate them)
+2. Write all other content in English
+3. Use consistent markdown formatting:
+   - Use ## for main section headers
+   - Use ### for subsection headers
+   - Use bullet points (-) for lists
+   - Use **bold** for key terms and concepts
+   - Use > for important quotes or principles
+4. Organize the notes with clear sections
+5. Be comprehensive and capture all important points
+6. Return ONLY the formatted notes, no preamble or meta-commentary
+7. NEVER use HTML tags - use ONLY markdown syntax (plain text with markdown formatting)
+
+If you cannot access or process the audio, respond with exactly: "ERROR: Unable to process audio file."""
             
             try:
                 result = model.generate_content([myfile, prompt])
                 notes = result.text
             except ValueError:
                  # This usually happens if the model blocks the response or returns no text
-                return jsonify({'error': "Gemini could not generate notes for this audio (possibly due to safety filters or audio quality)."}), 422
+                return jsonify({'error': "Could not generate notes for this audio. The audio may be too long, corrupted, or contain content that cannot be processed."}), 422
             except Exception as e:
-                return jsonify({'error': f"Gemini generation error: {str(e)}"}), 500
+                return jsonify({'error': f"Failed to generate notes: {str(e)}"}), 500
             
             # Clean LaTeX formatting
             cleaned_notes = clean_latex_formatting(notes)
