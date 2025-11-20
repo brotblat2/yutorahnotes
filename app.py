@@ -167,7 +167,7 @@ def process_shiur():
             
             prompt = """Take extensive and clear notes on this shiur in markdown format. Follow these rules strictly:
 
-1. Write all content in English except for Hebrew terms whcih should be written in Hebrew script (do not translate or transliterate them)
+1. Write all content in English except for Hebrew terms which should be written in Hebrew script (do not translate or transliterate them).
 2. NEVER use HTML tags - use ONLY markdown syntax (plain text with markdown formatting)
 3. Use consistent markdown formatting:
    - Use ## for main section headers

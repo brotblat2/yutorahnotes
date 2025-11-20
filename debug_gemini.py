@@ -5,8 +5,9 @@ load_dotenv()
 GENAI_API_KEY = os.getenv("GENAI_API_KEY")
 if not GENAI_API_KEY:
     raise ValueError("API Key not found. Make sure it is set in your .env file.")
-    
+
 def test_gemini():
+    
     try:
         print("Listing models...")
         for m in genai.list_models():
