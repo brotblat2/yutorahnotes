@@ -65,6 +65,19 @@ def get_mp3_url(page_url):
         print(f"Error scraping URL: {e}")
         return None
 
+def normalize_yutorah_url(url):
+    """Normalizes YUTorah URLs to just the base lecture ID for consistent caching.
+    Example: https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here
+    Returns: https://www.yutorah.org/sidebar/lecturedata/1154805
+    """
+    import re
+    # Match the pattern up to and including the lecture ID number
+    match = re.match(r'(https?://(?:www\.)?yutorah\.org/sidebar/lecturedata/\d+)', url)
+    if match:
+        return match.group(1)
+    return url  # Return original if pattern doesn't match
+
+
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Not found'}), 404
@@ -89,6 +102,10 @@ def process_shiur():
     
     if not page_url:
         return jsonify({'error': 'No URL provided'}), 400
+    
+    # Normalize the URL to just the base lecture ID for consistent caching
+    page_url = normalize_yutorah_url(page_url)
+
     
     # Check cache
     try:
