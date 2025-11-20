@@ -275,6 +275,7 @@
     </div>
 
     <script>
+        // Version: 2.0 - Enhanced error handling for non-JSON responses
         // Check for URL parameter on page load and auto-fill
         window.addEventListener('DOMContentLoaded', function () {
             const urlParams = new URLSearchParams(window.location.search);
@@ -398,8 +399,16 @@
                 const contentType = response.headers.get('content-type');
                 let data;
                 
-                // Try to parse as JSON
-                if (contentType && contentType.includes('application/json')) {
+                // Check if response looks like HTML (starts with <)
+                const looksLikeHTML = responseText.trim().startsWith('<');
+                
+                // Try to parse as JSON only if:
+                // 1. Content-Type says it's JSON AND it doesn't look like HTML
+                // 2. OR Content-Type is missing/null but it doesn't look like HTML
+                const shouldTryJSON = (contentType && contentType.includes('application/json')) || 
+                                     (!contentType && !looksLikeHTML);
+                
+                if (shouldTryJSON && !looksLikeHTML) {
                     try {
                         data = JSON.parse(responseText);
                     } catch (parseError) {
