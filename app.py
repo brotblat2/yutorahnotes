@@ -167,8 +167,8 @@ def process_shiur():
             
             prompt = """Take extensive and clear notes on this shiur in markdown format. Follow these rules strictly:
 
-1. Write Hebrew terms in Hebrew script (do not translate or transliterate them)
-2. Write all other content in English
+1. Write all content in English except for Hebrew terms whcih should be written in Hebrew script (do not translate or transliterate them)
+2. NEVER use HTML tags - use ONLY markdown syntax (plain text with markdown formatting)
 3. Use consistent markdown formatting:
    - Use ## for main section headers
    - Use ### for subsection headers
@@ -178,7 +178,6 @@ def process_shiur():
 4. Organize the notes with clear sections
 5. Be comprehensive and capture all important points
 6. Return ONLY the formatted notes, no preamble or meta-commentary
-7. NEVER use HTML tags - use ONLY markdown syntax (plain text with markdown formatting)
 
 If you cannot access or process the audio, respond with exactly: "ERROR: Unable to process audio file."""
             

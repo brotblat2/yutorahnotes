@@ -1,9 +1,11 @@
 import google.generativeai as genai
 import os
-
-GENAI_API_KEY = "AIzaSyCNmly7o_o-hg1mVJQOspcXt_gJVWXHNxQ"
-genai.configure(api_key=GENAI_API_KEY)
-
+load_dotenv()
+# Access the key safely
+GENAI_API_KEY = os.getenv("GENAI_API_KEY")
+if not GENAI_API_KEY:
+    raise ValueError("API Key not found. Make sure it is set in your .env file.")
+    
 def test_gemini():
     try:
         print("Listing models...")
