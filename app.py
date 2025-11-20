@@ -69,17 +69,19 @@ def get_mp3_url(page_url):
         print(f"Error scraping URL: {e}")
         return None
 
-def normalize_yutorah_url(url):
-    """Normalizes YUTorah URLs to just the base lecture ID for consistent caching.
-    Example: https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here
-    Returns: https://www.yutorah.org/sidebar/lecturedata/1154805
+def extract_lecture_id(url):
+    """Extracts just the lecture ID from YUTorah URLs for caching.
+    Handles both URL patterns:
+    - https://www.yutorah.org/lectures/1154805/Title-Here -> "1154805"
+    - https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here -> "1154805"
+    Returns the ID as a string, or None if not found.
     """
     import re
-    # Match the pattern up to and including the lecture ID number
-    match = re.match(r'(https?://(?:www\.)?yutorah\.org/sidebar/lecturedata/\d+)', url)
+    # Extract just the lecture ID number from either URL pattern
+    match = re.search(r'/(?:lectures|sidebar/lecturedata)/(\d+)', url)
     if match:
         return match.group(1)
-    return url  # Return original if pattern doesn't match
+    return None
 
 
 # Global exception handler to ensure JSON responses
@@ -114,16 +116,17 @@ def process_shiur():
     if not page_url:
         return jsonify({'error': 'No URL provided'}), 400
     
-    # Normalize the URL to just the base lecture ID for consistent caching
-    page_url = normalize_yutorah_url(page_url)
-
+    # Extract lecture ID for caching
+    lecture_id = extract_lecture_id(page_url)
+    if not lecture_id:
+        return jsonify({'error': 'Invalid YUTorah URL format'}), 400
     
-    # Check cache
+    # Check cache using lecture ID
     try:
         cache = load_cache()
-        if page_url in cache:
-            print(f"Returning cached notes for {page_url}")
-            cleaned_notes = clean_latex_formatting(cache[page_url])
+        if lecture_id in cache:
+            print(f"Returning cached notes for lecture ID: {lecture_id}")
+            cleaned_notes = clean_latex_formatting(cache[lecture_id])
             return jsonify({'notes': cleaned_notes, 'cached': True})
     except Exception as e:
         print(f"Cache error: {e}")
@@ -191,9 +194,9 @@ If you cannot access or process the audio, respond with exactly: "ERROR: Unable 
             # Clean LaTeX formatting
             cleaned_notes = clean_latex_formatting(notes)
             
-            # Save to cache
+            # Save to cache using lecture ID
             try:
-                cache[page_url] = cleaned_notes
+                cache[lecture_id] = cleaned_notes
                 save_cache(cache)
             except Exception as e:
                 print(f"Error saving to cache: {e}")
