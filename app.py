@@ -7,6 +7,10 @@ import threading
 from flask import Flask, render_template, request, jsonify
 from bs4 import BeautifulSoup
 import google.generativeai as genai
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
 
@@ -15,7 +19,9 @@ app.config['PROPAGATE_EXCEPTIONS'] = False
 app.config['TRAP_HTTP_EXCEPTIONS'] = True
 
 # Configure Gemini API
-GENAI_API_KEY = "AIzaSyCNmly7o_o-hg1mVJQOspcXt_gJVWXHNxQ"
+GENAI_API_KEY = os.getenv('GEMINI_API_KEY')
+if not GENAI_API_KEY:
+    raise ValueError("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.")
 genai.configure(api_key=GENAI_API_KEY)
 
 CACHE_FILE = 'notes_cache.json'
