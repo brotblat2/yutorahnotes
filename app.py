@@ -10,6 +10,10 @@ import google.generativeai as genai
 
 app = Flask(__name__)
 
+# Ensure Flask never returns HTML error pages
+app.config['PROPAGATE_EXCEPTIONS'] = False
+app.config['TRAP_HTTP_EXCEPTIONS'] = True
+
 # Configure Gemini API
 GENAI_API_KEY = "AIzaSyCNmly7o_o-hg1mVJQOspcXt_gJVWXHNxQ"
 genai.configure(api_key=GENAI_API_KEY)
@@ -77,6 +81,13 @@ def normalize_yutorah_url(url):
         return match.group(1)
     return url  # Return original if pattern doesn't match
 
+
+# Global exception handler to ensure JSON responses
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Catch all exceptions and return JSON instead of HTML."""
+    print(f"Unhandled exception: {e}")
+    return jsonify({'error': f'Server error: {str(e)}'}), 500
 
 @app.errorhandler(404)
 def not_found(error):
