@@ -95,6 +95,22 @@ def extract_lecture_id(url):
         return match.group(1)
     return None
 
+def normalize_yutorah_url(url):
+    """Normalizes any YUTorah URL to the standard format: https://www.yutorah.org/lectures/{lecture_id}
+    
+    Handles various URL formats:
+    - https://www.yutorah.org/lectures/1154805/Title-Here -> https://www.yutorah.org/lectures/1154805
+    - https://www.yutorah.org/lectures/lecture.cfm/1154805 -> https://www.yutorah.org/lectures/1154805
+    - https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here -> https://www.yutorah.org/lectures/1154805
+    - https://www.yutorah.org/lectures/1154805 -> https://www.yutorah.org/lectures/1154805 (unchanged)
+    
+    Returns the normalized URL, or None if the URL format is invalid.
+    """
+    lecture_id = extract_lecture_id(url)
+    if not lecture_id:
+        return None
+    return f"https://www.yutorah.org/lectures/{lecture_id}"
+
 
 # Global exception handler to ensure JSON responses
 @app.errorhandler(Exception)
@@ -128,10 +144,18 @@ def process_shiur():
     if not page_url:
         return jsonify({'error': 'No URL provided'}), 400
     
-    # Extract lecture ID for caching
-    lecture_id = extract_lecture_id(page_url)
+    # Normalize URL to standard format
+    normalized_url = normalize_yutorah_url(page_url)
+    if not normalized_url:
+        return jsonify({'error': 'Invalid YUTorah URL format'}), 400
+    
+    # Extract lecture ID for caching (from normalized URL)
+    lecture_id = extract_lecture_id(normalized_url)
     if not lecture_id:
         return jsonify({'error': 'Invalid YUTorah URL format'}), 400
+    
+    # Use normalized URL for all subsequent operations
+    page_url = normalized_url
     
     # Check cache using lecture ID
     try:
