@@ -19,9 +19,9 @@ app.config['PROPAGATE_EXCEPTIONS'] = False
 app.config['TRAP_HTTP_EXCEPTIONS'] = True
 
 # Configure Gemini API
-GENAI_API_KEY = os.getenv('GEMINI_API_KEY')
+GENAI_API_KEY = os.getenv('GENAI_API_KEY')
 if not GENAI_API_KEY:
-    raise ValueError("GEMINI_API_KEY not found in environment variables. Please set it in your .env file.")
+    raise ValueError("GENAI_API_KEY not found in environment variables. Please set it in your .env file.")
 genai.configure(api_key=GENAI_API_KEY)
 
 CACHE_FILE = 'notes_cache.json'
