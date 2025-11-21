@@ -51,3 +51,223 @@
 #yutorah-transcribe-btn svg {
     flex-shrink: 0;
 }
+
+/* Backdrop */
+#yutorah-sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 10000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+#yutorah-sidebar-backdrop.open {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Sidebar Styles */
+#yutorah-notes-sidebar {
+    position: fixed;
+    top: 0;
+    right: -450px;
+    width: 450px;
+    height: 100vh;
+    background: white;
+    box-shadow: -2px 0 10px rgba(0, 0, 0, 0.1);
+    z-index: 10001;
+    transition: right 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+#yutorah-notes-sidebar.open {
+    right: 0;
+}
+
+.sidebar-header {
+    padding: 20px;
+    border-bottom: 1px solid #e2e8f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: white;
+}
+
+.sidebar-header h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    color: white;
+    font-size: 28px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    line-height: 1;
+    padding: 0;
+}
+
+.close-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+/* Loading State */
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+    color: #64748b;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e2e8f0;
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Error State */
+.error-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    text-align: center;
+}
+
+.error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    color: #ef4444;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.retry-btn {
+    background: #6366f1;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.retry-btn:hover {
+    background: #4f46e5;
+}
+
+/* Notes Content */
+.notes-content {
+    color: #1e293b;
+    line-height: 1.8;
+}
+
+.cache-badge {
+    display: inline-block;
+    background: #10b981;
+    color: white;
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.notes-text {
+    font-size: 15px;
+}
+
+.notes-text h1 {
+    font-size: 24px;
+    margin-top: 24px;
+    margin-bottom: 16px;
+    color: #1e293b;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 8px;
+}
+
+.notes-text h2 {
+    font-size: 20px;
+    margin-top: 20px;
+    margin-bottom: 12px;
+    color: #1e293b;
+}
+
+.notes-text h3 {
+    font-size: 18px;
+    margin-top: 16px;
+    margin-bottom: 10px;
+    color: #334155;
+}
+
+.notes-text p {
+    margin-bottom: 12px;
+}
+
+.notes-text ul {
+    margin: 12px 0;
+    padding-left: 24px;
+}
+
+.notes-text li {
+    margin-bottom: 8px;
+}
+
+.notes-text blockquote {
+    border-left: 4px solid #6366f1;
+    margin: 16px 0;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-radius: 4px;
+    font-style: italic;
+    color: #64748b;
+}
+
+.notes-text strong {
+    color: #1e293b;
+    font-weight: 600;
+}
+
+.notes-text em {
+    font-style: italic;
+}

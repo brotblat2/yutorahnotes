@@ -5,7 +5,8 @@
   "version": "1.0.0",
   "permissions": [],
   "host_permissions": [
-    "*://*.yutorah.org/*"
+    "*://*.yutorah.org/*",
+    "https://yutorahnotes.onrender.com/*"
   ],
   "content_scripts": [
     {

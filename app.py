@@ -24,7 +24,24 @@ if not GENAI_API_KEY:
     raise ValueError("GENAI_API_KEY not found in environment variables. Please set it in your .env file.")
 genai.configure(api_key=GENAI_API_KEY)
 
+# Configure cache backend (Redis for production, file for local dev)
 CACHE_FILE = 'notes_cache.json'
+REDIS_URL = os.getenv('REDIS_URL')  # Render provides this automatically for Redis services
+
+# Try to initialize Redis, fallback to file-based cache
+redis_client = None
+if REDIS_URL:
+    try:
+        import redis
+        redis_client = redis.from_url(REDIS_URL, decode_responses=True)
+        # Test connection
+        redis_client.ping()
+        print("Using Redis for cache storage")
+    except Exception as e:
+        print(f"Failed to connect to Redis: {e}. Falling back to file-based cache.")
+        redis_client = None
+else:
+    print("No REDIS_URL found. Using file-based cache.")
 
 # Lock to ensure only one MP3 is processed at a time (reduces storage overhead)
 processing_lock = threading.Lock()
@@ -39,18 +56,62 @@ def clean_latex_formatting(text):
     text = re.sub(r'\$([^$]*)\$', r'\1', text)
     return text
 
+def get_cached_notes(lecture_id):
+    """Get cached notes for a specific lecture ID.
+    Uses Redis if available, otherwise falls back to file-based cache.
+    """
+    if redis_client:
+        try:
+            notes = redis_client.get(f'lecture:{lecture_id}')
+            return notes if notes else None
+        except Exception as e:
+            print(f"Error getting from Redis: {e}")
+            # Fallback to file-based cache
+            cache = load_cache()
+            return cache.get(lecture_id)
+    else:
+        # File-based cache
+        cache = load_cache()
+        return cache.get(lecture_id)
+
+def set_cached_notes(lecture_id, notes):
+    """Set cached notes for a specific lecture ID.
+    Uses Redis if available, otherwise falls back to file-based cache.
+    """
+    if redis_client:
+        try:
+            redis_client.set(f'lecture:{lecture_id}', notes)
+            return True
+        except Exception as e:
+            print(f"Error setting in Redis: {e}")
+            # Fallback to file-based cache
+            return set_cached_notes_file(lecture_id, notes)
+    else:
+        # File-based cache
+        return set_cached_notes_file(lecture_id, notes)
+
 def load_cache():
+    """Load entire cache from file (used as fallback for file-based operations)."""
     if os.path.exists(CACHE_FILE):
         try:
             with open(CACHE_FILE, 'r') as f:
                 return json.load(f)
-        except:
+        except Exception as e:
+            print(f"Error loading cache file: {e}")
             return {}
     return {}
 
-def save_cache(cache):
-    with open(CACHE_FILE, 'w') as f:
-        json.dump(cache, f)
+def set_cached_notes_file(lecture_id, notes):
+    """Helper function to save to file-based cache."""
+    try:
+        cache = load_cache()
+        cache[lecture_id] = notes
+        with open(CACHE_FILE, 'w') as f:
+            json.dump(cache, f)
+        return True
+    except Exception as e:
+        print(f"Error saving to cache file: {e}")
+        return False
 
 def get_mp3_url(page_url):
     """Scrapes the Yutorah page to find the MP3 download link."""
@@ -159,10 +220,10 @@ def process_shiur():
     
     # Check cache using lecture ID
     try:
-        cache = load_cache()
-        if lecture_id in cache:
+        cached_notes = get_cached_notes(lecture_id)
+        if cached_notes:
             print(f"Returning cached notes for lecture ID: {lecture_id}")
-            cleaned_notes = clean_latex_formatting(cache[lecture_id])
+            cleaned_notes = clean_latex_formatting(cached_notes)
             return jsonify({'notes': cleaned_notes, 'cached': True})
     except Exception as e:
         print(f"Cache error: {e}")
@@ -231,8 +292,7 @@ If you cannot access or process the audio, respond with exactly: "ERROR: Unable 
             
             # Save to cache using lecture ID
             try:
-                cache[lecture_id] = cleaned_notes
-                save_cache(cache)
+                set_cached_notes(lecture_id, cleaned_notes)
             except Exception as e:
                 print(f"Error saving to cache: {e}")
             
