@@ -130,33 +130,6 @@ def get_mp3_url(page_url):
         audio = soup.find('audio')
         if audio and audio.get('src'):
             return audio['src']
-            
-        return None
-    except Exception as e:
-        print(f"Error scraping URL: {e}")
-        return None
-
-def extract_lecture_id(url):
-    """Extracts just the lecture ID from YUTorah URLs for caching.
-    Handles multiple URL patterns:
-    - https://www.yutorah.org/lectures/1154805/Title-Here -> "1154805"
-    - https://www.yutorah.org/lectures/lecture.cfm/1154805 -> "1154805"
-    - https://www.yutorah.org/sidebar/lecturedata/1154805/Title-Here -> "1154805"
-    Returns the ID as a string, or None if not found.
-    """
-    import re
-    # Extract just the lecture ID number from various URL patterns
-    # Pattern 1: /lectures/lecture.cfm/ID
-    match = re.search(r'/lectures/lecture\.cfm/(\d+)', url)
-    if match:
-        return match.group(1)
-    # Pattern 2: /lectures/ID or /sidebar/lecturedata/ID
-    match = re.search(r'/(?:lectures|sidebar/lecturedata)/(\d+)', url)
-    if match:
-        return match.group(1)
-    return None
-
-def normalize_yutorah_url(url):
     """Normalizes any YUTorah URL to the standard format: https://www.yutorah.org/lectures/{lecture_id}
     
     Handles various URL formats:
@@ -167,10 +140,26 @@ def normalize_yutorah_url(url):
     
     Returns the normalized URL, or None if the URL format is invalid.
     """
-    lecture_id = extract_lecture_id(url)
-    if not lecture_id:
-        return None
-    return f"https://www.yutorah.org/lectures/{lecture_id}"
+def generate_cache_key(url, request_type='notes'):
+    """Generates a cache key from the URL and request type.
+    Format: yutorah_{id}_{type}
+    Example: yutorah_1154805_notes
+    """
+    import re
+    # Extract just the lecture ID number from various URL patterns
+    match = re.search(r'/(?:lectures|sidebar/lecturedata|lecture\.cfm)/(\d+)', url)
+    if match:
+        lecture_id = match.group(1)
+        return f"yutorah_{lecture_id}_{request_type}"
+    return None
+
+def normalize_yutorah_url(url):
+    """Normalizes any YUTorah URL to the standard format: https://www.yutorah.org/lectures/{lecture_id}"""
+    import re
+    match = re.search(r'/(?:lectures|sidebar/lecturedata|lecture\.cfm)/(\d+)', url)
+    if match:
+        return f"https://www.yutorah.org/lectures/{match.group(1)}"
+    return None
 
 
 # Global exception handler to ensure JSON responses
@@ -199,32 +188,28 @@ def process_shiur():
         if not data:
             return jsonify({'error': 'Invalid JSON data'}), 400
         page_url = data.get('url')
+        request_type = data.get('type', 'notes')  # Default to 'notes'
     except Exception:
         return jsonify({'error': 'Invalid JSON data'}), 400
     
     if not page_url:
         return jsonify({'error': 'No URL provided'}), 400
     
-    # Normalize URL to standard format
-    normalized_url = normalize_yutorah_url(page_url)
-    if not normalized_url:
+    if request_type not in ['notes', 'transcript']:
+        return jsonify({'error': 'Invalid request type. Must be "notes" or "transcript".'}), 400
+    
+    # Generate cache key
+    cache_key = generate_cache_key(page_url, request_type)
+    if not cache_key:
         return jsonify({'error': 'Invalid YUTorah URL format'}), 400
     
-    # Extract lecture ID for caching (from normalized URL)
-    lecture_id = extract_lecture_id(normalized_url)
-    if not lecture_id:
-        return jsonify({'error': 'Invalid YUTorah URL format'}), 400
-    
-    # Use normalized URL for all subsequent operations
-    page_url = normalized_url
-    
-    # Check cache using lecture ID
+    # Check cache
     try:
-        cached_notes = get_cached_notes(lecture_id)
-        if cached_notes:
-            print(f"Returning cached notes for lecture ID: {lecture_id}")
-            cleaned_notes = clean_latex_formatting(cached_notes)
-            return jsonify({'notes': cleaned_notes, 'cached': True})
+        cached_content = get_cached_notes(cache_key)
+        if cached_content:
+            print(f"Returning cached {request_type} for key: {cache_key}")
+            cleaned_content = clean_latex_formatting(cached_content)
+            return jsonify({'notes': cleaned_content, 'cached': True})
     except Exception as e:
         print(f"Cache error: {e}")
         # Continue processing if cache fails
@@ -258,11 +243,23 @@ def process_shiur():
             print("Uploading to Gemini...")
             myfile = genai.upload_file(temp_mp3_path)
             
-            # 4. Generate Notes
-            print("Generating notes...")
+            # 4. Generate Content
+            print(f"Generating {request_type}...")
             model = genai.GenerativeModel("gemini-flash-latest")
             
-            prompt = """Take extensive and clear notes on this shiur in markdown format. Follow these rules strictly:
+            if request_type == 'transcript':
+                prompt = """Generate a verbatim or near-verbatim transcript of this audio file.
+Follow these rules strictly:
+1. Identify speakers if possible (e.g., "Speaker:", "Audience:").
+2. Write Hebrew terms in Hebrew script (do not translate or transliterate them).
+3. Use paragraph breaks to indicate changes in topic or speaker.
+4. Do not add any summary, analysis, or preamble. Just the transcript.
+5. If the audio is unclear, mark it as [inaudible].
+
+If you cannot access or process the audio, respond with exactly: "ERROR: Unable to process audio file."""
+            else:
+                # Default to notes
+                prompt = """Take extensive and clear notes on this shiur in markdown format. Follow these rules strictly:
 
 1. Write all content in English except for Hebrew terms which should be written in Hebrew script (do not translate or transliterate them).
 2. NEVER use HTML tags - use ONLY markdown syntax (plain text with markdown formatting)
@@ -280,23 +277,23 @@ If you cannot access or process the audio, respond with exactly: "ERROR: Unable 
             
             try:
                 result = model.generate_content([myfile, prompt])
-                notes = result.text
+                generated_text = result.text
             except ValueError:
                  # This usually happens if the model blocks the response or returns no text
-                return jsonify({'error': "Could not generate notes for this audio. The audio may be too long, corrupted, or contain content that cannot be processed."}), 422
+                return jsonify({'error': "Could not process this audio. The audio may be too long, corrupted, or contain content that cannot be processed."}), 422
             except Exception as e:
-                return jsonify({'error': f"Failed to generate notes: {str(e)}"}), 500
+                return jsonify({'error': f"Failed to generate content: {str(e)}"}), 500
             
             # Clean LaTeX formatting
-            cleaned_notes = clean_latex_formatting(notes)
+            cleaned_text = clean_latex_formatting(generated_text)
             
-            # Save to cache using lecture ID
+            # Save to cache
             try:
-                set_cached_notes(lecture_id, cleaned_notes)
+                set_cached_notes(cache_key, cleaned_text)
             except Exception as e:
                 print(f"Error saving to cache: {e}")
             
-            return jsonify({'notes': cleaned_notes, 'cached': False})
+            return jsonify({'notes': cleaned_text, 'cached': False})
             
         finally:
             # Cleanup temp file
